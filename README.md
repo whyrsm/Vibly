@@ -4,7 +4,7 @@ Lightweight screen recording Chrome extension with webcam overlay. Record and sh
 
 ## Features
 
-- **Screen + Webcam Recording** - Capture your screen with a webcam overlay in the corner
+- **Screen + Webcam Recording** - Capture your screen with a draggable webcam overlay
 - **Cloud Upload** - Automatically upload and get shareable links
 - **No Download Required** - Share recordings via instant cloud-hosted links
 - **Simple & Fast** - No editing features, optimized for quick recordings
@@ -13,11 +13,11 @@ Lightweight screen recording Chrome extension with webcam overlay. Record and sh
 ## Project Structure
 
 ```
-├── vibly-extension/     # Chrome Extension (Manifest V3)
-│   ├── popup/           # Extension popup UI
-│   ├── lib/             # Recording, upload & API logic
-│   ├── background/      # Service worker
-│   └── config/          # Constants & settings
+├── vibly-extension/     # Chrome Extension (WXT + Vue 3)
+│   ├── entrypoints/     # Popup, background, content scripts
+│   ├── components/      # Vue components
+│   ├── utils/           # Recording, upload & API logic
+│   └── assets/          # Icons & styles
 │
 ├── vibly-backend/       # NestJS API
 │   ├── src/auth/        # JWT authentication
@@ -54,9 +54,20 @@ npm run start:dev
 
 ### 2. Chrome Extension
 
+```bash
+cd vibly-extension
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+Then load the extension:
 1. Open Chrome and go to `chrome://extensions`
 2. Enable "Developer mode" (top right)
-3. Click "Load unpacked" and select the `vibly-extension` folder
+3. Click "Load unpacked" and select `vibly-extension/.output/chrome-mv3`
 4. Click the Vibly icon in your toolbar
 
 ### Current Status
@@ -72,7 +83,7 @@ npm run start:dev
 
 ## Tech Stack
 
-**Extension:** Vanilla JS, Canvas API, MediaRecorder API, Manifest V3
+**Extension:** WXT, Vue 3, TypeScript, Canvas API, MediaRecorder API
 
 **Backend:** NestJS, PostgreSQL, Prisma, Cloudflare R2, JWT Auth
 
