@@ -1,8 +1,8 @@
-// API Configuration - change to your backend URL
+// API Configuration
 export const API_URL = 'http://localhost:3000';
 
 // Recording limits
-export const MAX_RECORDING_DURATION = 420; // 7 minutes in seconds (free tier)
+export const MAX_RECORDING_DURATION = 420; // 7 minutes in seconds
 export const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 
 // Upload configuration
@@ -14,12 +14,12 @@ export const VIDEO_FRAMERATE = 30;
 export const WEBCAM_SIZE_RATIO = 0.2; // 20% of screen width
 
 // Recording states
-export const RecordingState = {
-  IDLE: 'idle',
-  RECORDING: 'recording',
-  PAUSED: 'paused',
-  PROCESSING: 'processing',
-  UPLOADING: 'uploading',
-  COMPLETE: 'complete',
-  ERROR: 'error'
-};
+export enum RecordingState {
+  IDLE = 'idle',
+  RECORDING = 'recording',
+  PAUSED = 'paused',
+  PROCESSING = 'processing',
+  UPLOADING = 'uploading',
+  COMPLETE = 'complete',
+  ERROR = 'error',
+}
