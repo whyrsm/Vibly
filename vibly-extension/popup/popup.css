@@ -20,7 +20,9 @@ body {
 }
 
 .header {
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .logo {
@@ -32,6 +34,18 @@ body {
   background-clip: text;
 }
 
+.btn-icon-only {
+  background: transparent;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.btn-icon-only:hover {
+  color: #eee;
+}
+
 .state {
   display: flex;
   flex-direction: column;
@@ -40,6 +54,60 @@ body {
 
 .hidden {
   display: none !important;
+}
+
+/* Auth */
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.tab {
+  flex: 1;
+  padding: 8px;
+  background: #2d2d44;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.tab.active {
+  background: #667eea;
+  color: white;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-form input {
+  padding: 12px;
+  border: 1px solid #3d3d5c;
+  border-radius: 8px;
+  background: #2d2d44;
+  color: #eee;
+  font-size: 14px;
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.divider {
+  text-align: center;
+  color: #666;
+  font-size: 12px;
+}
+
+.user-info {
+  font-size: 12px;
+  color: #888;
+  text-align: center;
 }
 
 /* Options */
@@ -111,6 +179,20 @@ body {
   font-size: 10px;
 }
 
+/* Recording notice */
+.recording-notice {
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.recording-notice.recording-active {
+  background: rgba(46, 204, 113, 0.1);
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  color: #2ecc71;
+}
+
 /* Timer */
 .timer-container {
   display: flex;
@@ -153,6 +235,49 @@ body {
 
 .controls .btn {
   flex: 1;
+}
+
+.btn-small {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+/* Share link */
+.share-link-container {
+  display: flex;
+  gap: 8px;
+}
+
+.share-link {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #3d3d5c;
+  border-radius: 6px;
+  background: #2d2d44;
+  color: #eee;
+  font-size: 12px;
+}
+
+/* Uploading */
+.uploading {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+}
+
+.progress-bar {
+  height: 8px;
+  background: #2d2d44;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  width: 0%;
+  transition: width 0.3s ease;
 }
 
 /* Processing */

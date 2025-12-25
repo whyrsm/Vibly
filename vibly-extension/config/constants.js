@@ -1,5 +1,5 @@
-// API Configuration
-export const API_URL = 'https://api.vibly.com';
+// API Configuration - change to your backend URL
+export const API_URL = 'http://localhost:3000';
 
 // Recording limits
 export const MAX_RECORDING_DURATION = 420; // 7 minutes in seconds (free tier)

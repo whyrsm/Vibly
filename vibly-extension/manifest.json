@@ -5,15 +5,18 @@
   "description": "Lightweight screen recording with webcam overlay. Record and share instantly.",
   "permissions": [
     "storage",
-    "tabs"
+    "tabs",
+    "offscreen"
   ],
   "host_permissions": [
+    "http://localhost:3000/*",
     "https://api.vibly.com/*"
   ],
   "action": {
     "default_popup": "popup/popup.html"
   },
   "background": {
-    "service_worker": "background/service-worker.js"
+    "service_worker": "background/service-worker.js",
+    "type": "module"
   }
 }

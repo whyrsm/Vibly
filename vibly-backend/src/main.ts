@@ -5,13 +5,24 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Enable CORS for extension
+  // Enable CORS for extension and web
   app.enableCors({
-    origin: [
-      'chrome-extension://*',
-      process.env.FRONTEND_URL || 'http://localhost:5173',
-    ],
+    origin: (origin, callback) => {
+      // Allow Chrome extensions, localhost, and configured frontend
+      if (
+        !origin ||
+        origin.startsWith('chrome-extension://') ||
+        origin.startsWith('http://localhost') ||
+        origin === process.env.FRONTEND_URL
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   // Global validation pipe
