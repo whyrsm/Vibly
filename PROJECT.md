@@ -20,14 +20,16 @@ Vibly is a lightweight screen recording Chrome extension that enables users to r
 ### Tech Stack
 
 **Frontend (Chrome Extension):**
-- Manifest V3
-- Vanilla JavaScript (no framework for minimal bundle size)
+- WXT (Web Extension Tools) - Modern extension framework
+- Vue 3 with Composition API
+- TypeScript
 - Canvas API for webcam overlay compositing
 - MediaRecorder API for video capture
 
 **Backend:**
 - NestJS (TypeScript)
 - PostgreSQL (metadata storage)
+- Prisma ORM
 - Cloudflare R2 (video file storage)
 - JWT authentication (email/password)
 
@@ -40,6 +42,7 @@ Vibly is a lightweight screen recording Chrome extension that enables users to r
 ```
 ┌─────────────────┐
 │ Chrome Extension│
+│  (WXT + Vue 3)  │
 │  - Screen Cap   │
 │  - Webcam       │
 │  - Compositor   │
@@ -77,9 +80,10 @@ Vibly is a lightweight screen recording Chrome extension that enables users to r
 
 **Recording:**
 - Screen capture (full screen, window, or tab)
-- Webcam overlay (bottom-right corner, draggable)
+- Webcam overlay (bottom-right corner, rounded corners)
 - Real-time recording status indicator
 - Stop/pause controls
+- Microphone + system audio mixing
 
 **Upload & Sharing:**
 - S3 multipart upload (5MB parts) for reliable large file uploads
@@ -100,9 +104,10 @@ Vibly is a lightweight screen recording Chrome extension that enables users to r
 {
   id: uuid
   email: string
-  password_hash: string
-  created_at: timestamp
-  subscription_tier: enum ('free', 'pro')
+  passwordHash: string
+  subscriptionTier: 'free' | 'pro'
+  createdAt: timestamp
+  updatedAt: timestamp
 }
 ```
 
@@ -110,16 +115,16 @@ Vibly is a lightweight screen recording Chrome extension that enables users to r
 ```typescript
 {
   id: uuid
-  user_id: uuid (foreign key)
+  userId: uuid (foreign key)
   title: string
   duration: integer (seconds)
-  file_path: string (R2 object key)
-  file_size: bigint (bytes)
-  share_token: string (unique, indexed)
-  is_public: boolean
-  view_count: integer
-  created_at: timestamp
-  expires_at: timestamp (optional, for free tier)
+  filePath: string (R2 object key)
+  fileSize: bigint (bytes)
+  shareToken: string (unique, indexed)
+  isPublic: boolean
+  viewCount: integer
+  createdAt: timestamp
+  expiresAt: timestamp (optional, for free tier)
 }
 ```
 
@@ -127,14 +132,24 @@ Vibly is a lightweight screen recording Chrome extension that enables users to r
 ```typescript
 {
   id: uuid
-  recording_id: uuid
-  user_id: uuid
-  upload_id: string (S3 multipart upload ID)
-  status: enum ('pending', 'uploading', 'completed', 'failed', 'expired')
-  parts_uploaded: integer
-  total_size: bigint
-  created_at: timestamp
-  expires_at: timestamp (15 minutes from creation)
+  recordingId: uuid
+  userId: uuid
+  uploadId: string (S3 multipart upload ID)
+  status: 'uploading' | 'completed' | 'failed' | 'expired'
+  partsUploaded: integer
+  createdAt: timestamp
+  expiresAt: timestamp (15 minutes from creation)
+}
+```
+
+**RefreshToken:**
+```typescript
+{
+  id: uuid
+  userId: uuid
+  token: string (unique)
+  expiresAt: timestamp
+  createdAt: timestamp
 }
 ```
 
@@ -144,26 +159,29 @@ Vibly is a lightweight screen recording Chrome extension that enables users to r
 ```
 POST /api/auth/register
   → Body: { email, password }
-  → Returns: { access_token, refresh_token, user }
+  → Returns: { accessToken, refreshToken, user }
 
 POST /api/auth/login
   → Body: { email, password }
-  → Returns: { access_token, refresh_token, user }
+  → Returns: { accessToken, refreshToken, user }
 
 POST /api/auth/refresh
-  → Body: { refresh_token }
-  → Returns: { access_token }
+  → Body: { refreshToken }
+  → Returns: { accessToken, refreshToken, user }
+
+POST /api/auth/logout
+  → Invalidates refresh token
 ```
 
 **Recording Management:**
 ```
 POST /api/recordings/init
-  → Returns: { recording_id, upload_id, upload_urls[] }
-  → Note: Returns pre-signed URLs for each part (up to 100 parts)
+  → Body: { estimatedSize, partCount }
+  → Returns: { recordingId, uploadUrls[] }
 
 POST /api/recordings/:id/complete
-  → Body: { parts: [{ part_number, etag }], duration, title? }
-  → Returns: { share_url, share_token }
+  → Body: { parts: [{ partNumber, etag }], duration, title? }
+  → Returns: { shareUrl }
 
 GET /api/recordings (authenticated)
   → Returns: User's recording list
@@ -183,25 +201,25 @@ GET /api/watch/:shareToken
 **File Structure:**
 ```
 vibly-extension/
-├── manifest.json
-├── background/
-│   └── service-worker.js      # Handle permissions, state management
-├── content/
-│   └── overlay.js             # Webcam positioning UI (injected into page)
-├── popup/
-│   ├── popup.html             # Extension popup UI
-│   ├── popup.css
-│   └── popup.js               # Recording controls + state
-├── lib/
-│   ├── media-handler.js       # MediaRecorder wrapper
-│   ├── compositor.js          # Canvas-based screen+webcam merge
-│   ├── uploader.js            # S3 multipart upload logic
-│   └── api-client.js          # Backend API calls
-├── assets/
-│   ├── icons/                 # 16x16, 48x48, 128x128
-│   └── styles/
-└── config/
-    └── constants.js           # API URLs, chunk size, etc.
+├── wxt.config.ts              # WXT configuration & manifest
+├── package.json
+├── tsconfig.json
+├── entrypoints/
+│   ├── popup/                 # Extension popup UI
+│   │   ├── main.ts            # Vue app entry
+│   │   ├── App.vue            # Main component
+│   │   └── index.html
+│   └── background.ts          # Service worker
+├── utils/
+│   ├── constants.ts           # API URLs, settings
+│   ├── media-handler.ts       # MediaRecorder wrapper
+│   ├── compositor.ts          # Canvas-based screen+webcam merge
+│   ├── uploader.ts            # S3 multipart upload logic
+│   └── api-client.ts          # Backend API calls + auth
+├── components/                # Reusable Vue components
+├── assets/                    # Static assets
+└── public/
+    └── icon.svg               # Extension icon
 ```
 
 ### Extension Error States & UX
@@ -210,124 +228,142 @@ vibly-extension/
 | Error | User Message | Action |
 |-------|--------------|--------|
 | Screen permission denied | "Screen access denied. Click to try again." | Re-prompt permission |
-| Webcam permission denied | "Camera access denied. Recording without webcam." | Continue without webcam |
-| No audio device | "No microphone found. Recording without audio." | Continue without audio |
+| Webcam permission denied | Continue without webcam | Recording proceeds |
+| No audio device | Continue without audio | Recording proceeds |
 
 **Recording Errors:**
 | Error | User Message | Action |
 |-------|--------------|--------|
 | MediaRecorder not supported | "Your browser doesn't support recording." | Show Chrome version requirement |
 | Recording failed to start | "Couldn't start recording. Please try again." | Reset state, allow retry |
-| Tab closed during recording | "Recording stopped - tab was closed." | Save partial recording if possible |
+| Tab closed during recording | Recording stops automatically | Save partial recording if possible |
 
 **Upload Errors:**
 | Error | User Message | Action |
 |-------|--------------|--------|
-| Network offline | "No internet connection. Will retry when online." | Queue for retry, show pending state |
-| Upload timeout | "Upload taking too long. Retrying..." | Auto-retry with backoff |
-| Server error (5xx) | "Server error. Retrying in X seconds..." | Auto-retry 3x, then show manual retry |
-| Auth expired | "Session expired. Please log in again." | Redirect to login, preserve recording locally |
-| Upload failed (after retries) | "Upload failed. Click to retry or download locally." | Offer local download as fallback |
+| Network offline | Upload fails | Offer local download as fallback |
+| Upload timeout | "Upload failed" | Auto-retry with backoff |
+| Server error (5xx) | "Upload failed" | Auto-retry 3x, then show manual retry |
+| Auth expired | Token refresh attempted | If fails, redirect to login |
 
 **Progress States:**
 - Recording: Show duration timer + red dot indicator
 - Processing: "Preparing video..." (brief, during blob finalization)
 - Uploading: Progress bar with percentage + "Uploading... X%" 
-- Complete: "Link copied!" with share URL visible
+- Complete: Share URL visible with copy button
 
 ### Key Implementation Details
 
-**Webcam Overlay Compositing:**
-```javascript
-// Composite screen + webcam into single stream
-const canvas = document.createElement('canvas');
-const ctx = canvas.getContext('2d');
+**Webcam Overlay Compositing (compositor.ts):**
+```typescript
+export class Compositor {
+  canvas: HTMLCanvasElement | null = null;
+  ctx: CanvasRenderingContext2D | null = null;
+  screenVideo: HTMLVideoElement | null = null;
+  webcamVideo: HTMLVideoElement | null = null;
 
-// Set canvas size to screen resolution
-canvas.width = screenStream.getVideoTracks()[0].getSettings().width;
-canvas.height = screenStream.getVideoTracks()[0].getSettings().height;
+  async initialize(screenStream: MediaStream, webcamStream: MediaStream | null): Promise<HTMLCanvasElement> {
+    this.canvas = document.createElement('canvas');
+    this.ctx = this.canvas.getContext('2d');
 
-function composite() {
-  // Draw screen frame
-  ctx.drawImage(screenVideo, 0, 0, canvas.width, canvas.height);
-  
-  // Draw webcam overlay (bottom-right, 20% width)
-  const webcamWidth = canvas.width * 0.2;
-  const webcamHeight = webcamWidth * 0.75; // 4:3 ratio
-  const x = canvas.width - webcamWidth - 20;
-  const y = canvas.height - webcamHeight - 20;
-  
-  ctx.drawImage(webcamVideo, x, y, webcamWidth, webcamHeight);
-  
-  requestAnimationFrame(composite);
+    const videoTrack = screenStream.getVideoTracks()[0];
+    const settings = videoTrack.getSettings();
+    this.canvas.width = settings.width || 1920;
+    this.canvas.height = settings.height || 1080;
+
+    // Set up video elements for screen and webcam
+    this.screenVideo = document.createElement('video');
+    this.screenVideo.srcObject = screenStream;
+    await this.screenVideo.play();
+
+    if (webcamStream) {
+      this.webcamVideo = document.createElement('video');
+      this.webcamVideo.srcObject = webcamStream;
+      await this.webcamVideo.play();
+    }
+    return this.canvas;
+  }
+
+  private _composite(): void {
+    if (!this.isRunning || !this.ctx || !this.canvas || !this.screenVideo) return;
+    
+    // Draw screen frame
+    this.ctx.drawImage(this.screenVideo, 0, 0, this.canvas.width, this.canvas.height);
+    
+    // Draw webcam overlay (bottom-right, 20% width, rounded corners)
+    if (this.webcamVideo) this._drawWebcamOverlay();
+    
+    requestAnimationFrame(() => this._composite());
+  }
+
+  getOutputStream(): MediaStream {
+    return this.canvas!.captureStream(30); // 30 fps
+  }
 }
-
-const outputStream = canvas.captureStream(30); // 30 fps
 ```
 
-**⚠️ Performance Note:** Canvas compositing at 30fps is CPU-intensive. Test on:
-- Low-end machines (i3, 8GB RAM)
-- 4K displays (higher resolution = more work)
-- Long recordings (>10 min) for memory leaks
+**Audio Mixing (media-handler.ts):**
+```typescript
+combineStreams(videoStream: MediaStream, micStream: MediaStream | null): MediaStream {
+  const tracks: MediaStreamTrack[] = [];
+  const videoTrack = videoStream.getVideoTracks()[0];
+  if (videoTrack) tracks.push(videoTrack);
 
-If performance issues arise, consider:
-1. Reducing compositor fps to 24
-2. Downscaling canvas to 1080p max regardless of screen resolution
-3. Using OffscreenCanvas in a Web Worker (Manifest V3 compatible)
+  // Mix system audio + microphone using AudioContext
+  const audioContext = new AudioContext();
+  const destination = audioContext.createMediaStreamDestination();
 
-**S3 Multipart Upload Strategy:**
-```javascript
-// R2 is S3-compatible - use native multipart upload
+  const screenAudioTracks = videoStream.getAudioTracks();
+  if (screenAudioTracks.length > 0) {
+    const screenAudioSource = audioContext.createMediaStreamSource(new MediaStream([screenAudioTracks[0]]));
+    screenAudioSource.connect(destination);
+  }
+
+  if (micStream) {
+    const micAudioSource = audioContext.createMediaStreamSource(micStream);
+    micAudioSource.connect(destination);
+  }
+
+  const audioTrack = destination.stream.getAudioTracks()[0];
+  if (audioTrack) tracks.push(audioTrack);
+
+  return new MediaStream(tracks);
+}
+```
+
+**S3 Multipart Upload Strategy (uploader.ts):**
+```typescript
 const PART_SIZE = 5 * 1024 * 1024; // 5MB minimum for S3
 
-async function uploadRecording(blob, recordingId, uploadUrls) {
-  const parts = [];
-  const totalParts = Math.ceil(blob.size / PART_SIZE);
+async upload(blob: Blob, duration: number, title: string): Promise<{ shareUrl: string }> {
+  const partCount = Math.ceil(blob.size / PART_SIZE);
   
-  for (let i = 0; i < totalParts; i++) {
+  // Get pre-signed URLs from backend
+  const { recordingId, uploadUrls } = await apiClient.initRecording(blob.size, partCount);
+  
+  // Upload each part
+  const parts: { partNumber: number; etag: string }[] = [];
+  for (let i = 0; i < partCount; i++) {
     const start = i * PART_SIZE;
     const end = Math.min(start + PART_SIZE, blob.size);
     const part = blob.slice(start, end);
     
-    const etag = await uploadPartWithRetry(part, uploadUrls[i], i + 1);
-    parts.push({ part_number: i + 1, etag });
+    const etag = await this.uploadPartWithRetry(part, uploadUrls[i]);
+    parts.push({ partNumber: i + 1, etag });
     
-    // Report progress
-    onProgress((i + 1) / totalParts * 100);
+    this.onProgress?.((i + 1) / partCount * 100);
   }
   
-  // Complete multipart upload via backend
-  return await completeUpload(recordingId, parts);
-}
-
-async function uploadPartWithRetry(part, presignedUrl, partNumber, retries = 3) {
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      const response = await fetch(presignedUrl, {
-        method: 'PUT',
-        body: part,
-        headers: { 'Content-Type': 'video/webm' }
-      });
-      
-      // ETag is required for completing multipart upload
-      return response.headers.get('ETag');
-    } catch (error) {
-      if (attempt === retries - 1) throw error;
-      await sleep(Math.pow(2, attempt) * 1000); // Exponential backoff
-    }
-  }
+  // Complete multipart upload
+  return apiClient.completeRecording(recordingId, parts, duration, title);
 }
 ```
 
 ### Backend Implementation Notes
 
-**R2 Multipart Upload Flow:**
+**R2 Multipart Upload Flow (recordings.service.ts):**
 ```typescript
-// recordings.service.ts
-import { S3Client, CreateMultipartUploadCommand, CompleteMultipartUploadCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-
-async initRecording(userId: string, estimatedSize: number) {
+async initRecording(userId: string, estimatedSize: number, partCount: number) {
   const recordingId = uuid();
   const key = `recordings/${recordingId}.webm`;
   
@@ -338,9 +374,6 @@ async initRecording(userId: string, estimatedSize: number) {
     ContentType: 'video/webm'
   }));
   
-  // Calculate number of parts needed (5MB each, max 100 parts = 500MB)
-  const partCount = Math.min(Math.ceil(estimatedSize / (5 * 1024 * 1024)), 100);
-  
   // Generate pre-signed URLs for each part
   const uploadUrls = await Promise.all(
     Array.from({ length: partCount }, (_, i) => 
@@ -349,84 +382,51 @@ async initRecording(userId: string, estimatedSize: number) {
   );
   
   // Store upload session
-  await this.db.uploadSessions.create({
-    id: uuid(),
-    recording_id: recordingId,
-    user_id: userId,
-    upload_id: UploadId,
-    status: 'uploading',
-    expires_at: new Date(Date.now() + 15 * 60 * 1000) // 15 min
+  await this.prisma.uploadSession.create({
+    data: {
+      recordingId,
+      userId,
+      uploadId: UploadId,
+      status: 'uploading',
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000)
+    }
   });
   
-  return { recording_id: recordingId, upload_id: UploadId, upload_urls: uploadUrls };
+  return { recordingId, uploadUrls };
 }
 
 async completeRecording(recordingId: string, parts: Part[], metadata: RecordingMetadata) {
-  const session = await this.db.uploadSessions.findByRecordingId(recordingId);
+  const session = await this.prisma.uploadSession.findUnique({
+    where: { recordingId }
+  });
+  
   const key = `recordings/${recordingId}.webm`;
   
-  // Complete S3 multipart upload - this combines all parts automatically
+  // Complete S3 multipart upload
   await this.s3.send(new CompleteMultipartUploadCommand({
     Bucket: this.bucketName,
     Key: key,
-    UploadId: session.upload_id,
-    MultipartUpload: { Parts: parts.map(p => ({ PartNumber: p.part_number, ETag: p.etag })) }
+    UploadId: session.uploadId,
+    MultipartUpload: { Parts: parts.map(p => ({ PartNumber: p.partNumber, ETag: p.etag })) }
   }));
   
-  // Generate share token
-  const shareToken = generateShareToken(); // 12-char alphanumeric
+  // Generate share token and save recording
+  const shareToken = generateShareToken();
   
-  // Get final file size
-  const headResponse = await this.s3.send(new HeadObjectCommand({ Bucket: this.bucketName, Key: key }));
-  
-  // Save recording to database
-  await this.db.recordings.create({
-    id: recordingId,
-    user_id: session.user_id,
-    title: metadata.title || 'Untitled Recording',
-    duration: metadata.duration,
-    file_path: key,
-    file_size: headResponse.ContentLength,
-    share_token: shareToken,
-    is_public: true,
-    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for free tier
+  await this.prisma.recording.create({
+    data: {
+      id: recordingId,
+      userId: session.userId,
+      title: metadata.title || 'Untitled Recording',
+      duration: metadata.duration,
+      filePath: key,
+      fileSize: metadata.fileSize,
+      shareToken,
+      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+    }
   });
   
-  // Mark upload session complete
-  await this.db.uploadSessions.update(session.id, { status: 'completed' });
-  
-  return { share_url: `https://vibly.com/v/${shareToken}`, share_token: shareToken };
-}
-```
-
-**Video Streaming Endpoint:**
-```typescript
-// watch.controller.ts
-
-@Get('watch/:shareToken')
-async getRecording(@Param('shareToken') token: string) {
-  const recording = await this.recordingsService.findByToken(token);
-  
-  if (!recording) {
-    throw new NotFoundException('Recording not found');
-  }
-  
-  if (recording.expires_at && recording.expires_at < new Date()) {
-    throw new GoneException('Recording has expired');
-  }
-  
-  // Generate signed R2 URL (1-hour expiry)
-  const videoUrl = await this.r2.getSignedUrl(recording.file_path, 3600);
-  
-  // Increment view count (async, non-blocking)
-  this.recordingsService.incrementViews(recording.id);
-  
-  return {
-    title: recording.title,
-    duration: recording.duration,
-    video_url: videoUrl,
-    created_at: recording.created_at
-  };
+  return { shareUrl: `https://vibly.com/v/${shareToken}` };
 }
 ```
 
@@ -459,40 +459,39 @@ async login() { ... }
 
 ### Development Phases
 
-**Phase 1: Core Recording (Week 1-2)**
-- [ ] Chrome extension boilerplate with Manifest V3
-- [ ] Screen capture implementation
-- [ ] Webcam capture implementation
-- [ ] Canvas compositor for overlay
-- [ ] Local download functionality (validation before cloud)
-- [ ] Recording UI controls (start/stop/pause)
-- [ ] Test compositor on low-end machine + 4K display
+**Phase 1: Core Recording ✅**
+- [x] WXT + Vue 3 extension setup
+- [x] Screen capture implementation
+- [x] Webcam capture implementation
+- [x] Canvas compositor for overlay
+- [x] Local download functionality
+- [x] Recording UI controls (start/stop/pause)
+- [x] Audio mixing (system + microphone)
 
-**Phase 2: Backend Infrastructure (Week 2-3)**
-- [ ] NestJS project setup
-- [ ] PostgreSQL schema & migrations (User, Recording, UploadSession)
-- [ ] Cloudflare R2 integration with S3 SDK
-- [ ] Authentication endpoints (JWT + refresh tokens)
-- [ ] Multipart upload init endpoint
-- [ ] Multipart upload complete endpoint
-- [ ] Signed URL generation for playback
+**Phase 2: Backend Infrastructure ✅**
+- [x] NestJS project setup
+- [x] PostgreSQL schema & migrations (Prisma)
+- [x] Cloudflare R2 integration with S3 SDK
+- [x] Authentication endpoints (JWT + refresh tokens)
+- [x] Multipart upload init endpoint
+- [x] Multipart upload complete endpoint
+- [x] Signed URL generation for playback
 
-**Phase 3: Integration (Week 3)**
-- [ ] Extension API client implementation
-- [ ] S3 multipart uploader with retry logic
-- [ ] Progress indicator UI
-- [ ] Error handling & user feedback (all error states)
-- [ ] Share link generation
-- [ ] Copy-to-clipboard functionality
-- [ ] Offline detection + retry queue
+**Phase 3: Integration ✅**
+- [x] Extension API client implementation
+- [x] S3 multipart uploader with retry logic
+- [x] Progress indicator UI
+- [x] Error handling & user feedback
+- [x] Share link generation
+- [x] Copy-to-clipboard functionality
 
-**Phase 4: Public Player (Week 4)**
+**Phase 4: Public Player (Pending)**
 - [ ] Video player page UI (minimal, fast-loading)
 - [ ] Watch endpoint with signed URLs
 - [ ] View count tracking
 - [ ] Expired recording handling
 
-**Phase 5: Polish & Launch (Week 4-5)**
+**Phase 5: Polish & Launch (Pending)**
 - [ ] Extension icon & branding
 - [ ] Onboarding flow (first-time permission prompts)
 - [ ] Chrome Web Store listing prep
@@ -516,17 +515,19 @@ wrangler r2 bucket create vibly-recordings
 }
 ```
 
-**Database Migration (Prisma):**
+**Database Schema (Prisma):**
 ```prisma
 model User {
   id               String   @id @default(uuid())
   email            String   @unique
   passwordHash     String
-  subscriptionTier String   @default("free") // 'free' | 'pro'
+  subscriptionTier String   @default("free")
   createdAt        DateTime @default(now())
-  
+  updatedAt        DateTime @updatedAt
+
   recordings     Recording[]
   uploadSessions UploadSession[]
+  refreshTokens  RefreshToken[]
 }
 
 model Recording {
@@ -541,27 +542,40 @@ model Recording {
   viewCount   Int       @default(0)
   createdAt   DateTime  @default(now())
   expiresAt   DateTime?
-  
-  user User @relation(fields: [userId], references: [id])
-  
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([shareToken])
   @@index([userId])
 }
 
 model UploadSession {
-  id           String   @id @default(uuid())
-  recordingId  String   @unique
-  userId       String
-  uploadId     String   // S3 multipart upload ID
-  status       String   @default("uploading") // 'uploading' | 'completed' | 'failed' | 'expired'
-  partsUploaded Int     @default(0)
-  createdAt    DateTime @default(now())
-  expiresAt    DateTime
-  
-  user User @relation(fields: [userId], references: [id])
-  
+  id            String   @id @default(uuid())
+  recordingId   String   @unique
+  userId        String
+  uploadId      String
+  status        String   @default("uploading")
+  partsUploaded Int      @default(0)
+  createdAt     DateTime @default(now())
+  expiresAt     DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([recordingId])
-  @@index([status, expiresAt]) // For cleanup job
+  @@index([status, expiresAt])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
 }
 ```
 
@@ -575,14 +589,13 @@ R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
 R2_ACCESS_KEY_ID=your-r2-access-key
 R2_SECRET_ACCESS_KEY=your-r2-secret-key
 R2_BUCKET_NAME=vibly-recordings
-API_URL=https://api.vibly.com
-FRONTEND_URL=https://vibly.com
 
-# Extension (config/constants.js)
-const API_URL = 'https://api.vibly.com';
-const MAX_RECORDING_DURATION = 420; // 7 minutes for free tier (configurable)
-const PART_SIZE = 5 * 1024 * 1024; // 5MB (S3 minimum)
-const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
+# Extension (utils/constants.ts)
+export const API_URL = 'http://localhost:3000'; // or https://api.vibly.com
+export const MAX_RECORDING_DURATION = 420; // 7 minutes
+export const PART_SIZE = 5 * 1024 * 1024; // 5MB
+export const VIDEO_BITRATE = 2_500_000; // 2.5 Mbps
+export const VIDEO_FRAMERATE = 30;
 ```
 
 ### Testing Strategy
@@ -608,36 +621,6 @@ const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 5. Concurrent recordings from same user
 6. Expired upload session handling
 7. All permission denial combinations
-
-**Note:** Browser crash recovery is NOT supported in MVP. MediaRecorder doesn't support incremental saves. If needed later, consider periodic blob snapshots to IndexedDB.
-
-### Monitoring & Observability
-
-**Metrics to Track:**
-- Recording completion rate (started vs finalized)
-- Average upload time by file size
-- Failed upload rate (by error type)
-- Video playback errors
-- Storage usage growth rate
-
-**Logging:**
-```typescript
-// Structured logging with context
-logger.info('Recording finalized', {
-  recording_id: recordingId,
-  duration: metadata.duration,
-  file_size: totalSize,
-  parts: parts.length,
-  upload_time_ms: uploadDuration
-});
-
-logger.warn('Upload retry', {
-  recording_id: recordingId,
-  part_number: partNumber,
-  attempt: attempt,
-  error: error.message
-});
-```
 
 ### Cost Estimates (First 100 Users)
 
@@ -671,6 +654,7 @@ Total: ~$10-15/month
 - Password-protected links
 - Video thumbnails (generated server-side)
 - Privacy toggle (private by default option)
+- Draggable webcam position
 
 **Phase 3 Features:**
 - Custom domains for enterprises
@@ -700,51 +684,30 @@ Total: ~$10-15/month
 
 ## Getting Started
 
-### Initial Setup Commands
+### Backend Setup
 ```bash
-# Create project directories
-mkdir vibly-extension vibly-backend
-
-# Backend setup
 cd vibly-backend
-npx @nestjs/cli new . --package-manager npm
-npm install @nestjs/jwt @nestjs/passport passport passport-jwt bcrypt
-npm install @prisma/client @aws-sdk/client-s3 @aws-sdk/s3-request-presigner
-npm install --save-dev prisma @types/bcrypt @types/passport-jwt
-npx prisma init
+npm install
+cp .env.example .env  # Edit with your credentials
+npx prisma generate
+npx prisma migrate dev
+npm run start:dev
 ```
 
-### Priority Order for Development
+### Extension Setup
+```bash
+cd vibly-extension
+npm install
+npm run dev
+```
 
-1. **Extension: Local Recording First**
-   - `manifest.json` - Extension config
-   - `lib/media-handler.js` - MediaRecorder wrapper
-   - `lib/compositor.js` - Screen + webcam merge
-   - `popup/popup.html` + `popup.js` - UI
-   - Goal: Record and download locally (validate before cloud)
-
-2. **Backend: Upload Infrastructure**
-   - `prisma/schema.prisma` - All models
-   - `src/r2/r2.service.ts` - S3 multipart operations
-   - `src/recordings/recordings.service.ts` - Init + complete flow
-   - `src/auth/` - JWT authentication
-   - Goal: Accept uploads, return share links
-
-3. **Integration: End-to-End**
-   - `lib/uploader.js` - S3 multipart client
-   - `lib/api-client.js` - Auth + API calls
-   - Goal: Record → Upload → Share link works
-
-### Development Best Practices
-
-- Keep extension bundle size <500KB
-- Test compositor on low-end hardware early
-- Use feature flags for gradual rollout
-- Version extension with semver (start 0.1.0)
-- Log upload failures with full context for debugging
+Then load the extension:
+1. Open Chrome → `chrome://extensions`
+2. Enable "Developer mode"
+3. Click "Load unpacked" → select `vibly-extension/.output/chrome-mv3`
 
 ---
 
-**Document Version:** 1.1  
-**Last Updated:** 2024-12-25  
+**Document Version:** 2.0  
+**Last Updated:** 2024-12-26  
 **Owner:** Wahyu (Kav & Co)
