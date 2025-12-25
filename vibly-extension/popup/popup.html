@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vibly</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1 class="logo">Vibly</h1>
+    </header>
+
+    <!-- Idle State -->
+    <div id="idle-state" class="state">
+      <div class="options">
+        <label class="option">
+          <input type="checkbox" id="webcam-toggle" checked>
+          <span>Include webcam</span>
+        </label>
+        <label class="option">
+          <input type="checkbox" id="mic-toggle" checked>
+          <span>Include microphone</span>
+        </label>
+      </div>
+      <button id="start-btn" class="btn btn-primary">
+        <span class="btn-icon">●</span>
+        Start Recording
+      </button>
+    </div>
+
+    <!-- Recording State -->
+    <div id="recording-state" class="state hidden">
+      <div class="timer-container">
+        <span class="recording-dot"></span>
+        <span id="timer" class="timer">00:00</span>
+        <span id="time-limit" class="time-limit">/ 7:00</span>
+      </div>
+      <div class="controls">
+        <button id="pause-btn" class="btn btn-secondary">
+          Pause
+        </button>
+        <button id="stop-btn" class="btn btn-danger">
+          Stop
+        </button>
+      </div>
+    </div>
+
+    <!-- Processing State -->
+    <div id="processing-state" class="state hidden">
+      <div class="processing">
+        <div class="spinner"></div>
+        <p>Preparing video...</p>
+      </div>
+    </div>
+
+    <!-- Complete State -->
+    <div id="complete-state" class="state hidden">
+      <div class="complete">
+        <p class="success-text">Recording complete!</p>
+        <button id="download-btn" class="btn btn-primary">
+          Download Video
+        </button>
+        <button id="new-recording-btn" class="btn btn-secondary">
+          New Recording
+        </button>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-state" class="state hidden">
+      <div class="error">
+        <p id="error-message" class="error-text"></p>
+        <button id="retry-btn" class="btn btn-secondary">
+          Try Again
+        </button>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <span class="version">v0.1.0</span>
+    </footer>
+  </div>
+
+  <script src="popup.js" type="module"></script>
+</body>
+</html>
